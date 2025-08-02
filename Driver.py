@@ -5,19 +5,20 @@ from urllib.parse import urljoin
 import csv
 import time
 
-
 class TitleNotFoundError(Exception):
     pass
 
-
+DEBUG = False
 URL = "https://aib.ps/"
 DOMAIN = "aib.ps"
 OUTPUT_FILE = ""
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
+if DEBUG:
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+else: 
+    logging.basicConfig(level=logging.CRITICAL)
 
 def fetch_page(url: str):
     logging.info(f"Fetching Page {url}.")
@@ -38,17 +39,18 @@ def aboutus_content(url: str) -> tuple:
     try:
 
         if url.endswith("/about-bank"):
-            get_title(soup)
+            print(get_title(soup))
         elif url.endswith("/chairmans-speech"):
-            pass
+            print(get_title(soup))
         elif url.endswith("/board-of-directors"):
-            pass
+             print(get_title(soup))
         elif url.endswith("/executive-management"):
-            pass
+             print(get_title(soup))
         elif url.endswith("/sharia-supervisory-board"):
-            pass
+             print(get_title(soup))
         elif url.endswith("/prizes"):
-            pass
+             print(get_title(soup))
+
 
     except TitleNotFoundError as e:
         print(e)
@@ -76,7 +78,7 @@ def extract_content(url: str, html: str):
     if url.endswith("/about-us"):
         links = soup.select("div.item-list-w a.item-list")
         for link in links:
-            aboutus_content(link)
+            aboutus_content(link['href'])
 
 
 def main():
