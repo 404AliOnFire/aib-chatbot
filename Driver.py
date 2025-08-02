@@ -99,6 +99,8 @@ def about_us_content(url: str) -> dict:
 
         elif url.endswith("/executive-management"):
             pages_tags = soup.select('a.page-link')
+            titles.extend(get_titles(url,soup))
+            texts.extend(get_names(url,soup))
             
             if pages_tags:
                 for link in pages_tags:
@@ -107,8 +109,10 @@ def about_us_content(url: str) -> dict:
                         html = fetch_page(new_url)
                         if html:
                             new_soup = BeautifulSoup(html, 'lxml')
-                            titles.extend(get_titles(new_url, soup))
-                            texts.extend(get_names(new_url, soup))
+                            titles.extend(get_titles(new_url, new_soup))
+                            texts.extend(get_names(new_url, new_soup))
+            for title,name in zip(titles,texts):
+                print(f"{title}: {name}")
         # elif url.endswith("/sharia-supervisory-board"):
         #     print(get_title(soup), end="\n\n")
         #     print(get_paragraph(soup))
