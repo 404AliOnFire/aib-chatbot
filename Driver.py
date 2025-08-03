@@ -1,7 +1,12 @@
+from ast import Str
+from asyncio import exceptions
+from sys import exception
+from types import NoneType
 import requests
 from bs4 import BeautifulSoup
 import logging
 from urllib.parse import urljoin
+import re
 
 
 class TitleNotFoundError(Exception):
@@ -55,6 +60,44 @@ def get_titles(url: str, soup: BeautifulSoup) -> list:
         raise TitleNotFoundError("Title tag not found in HTML")
 
 
+def get_green_titles(url: str, soup: BeautifulSoup) -> list:
+  
+    
+    data_list = []
+    
+    titles_tag = soup.find_all('span', style=re.compile(r'color:\s*#799E91'))
+    
+    for title_span in titles_tag:
+        try:
+            title = title_span.get_text(strip=True)
+            
+    
+            parent = title_span.parent
+            list_elements = None
+            if parent:
+                list_elements = parent.find_next_sibling(['ul', 'ol'])
+            
+            full_text = ""
+            if list_elements:
+                points = [li.get_text(strip=True) for li in list_elements.find_all('li')]#type:ignore
+                full_text = '\n'.join(points)
+
+            row = {
+                'url' : url,
+                'title' : title,
+                'text' : full_text
+            }
+            
+            data_list.append(row)
+            
+        except Exception as e:
+            print(f"Error occurred while processing a title: {e}")
+            continue
+            
+    return data_list
+        
+    
+
 def get_names(url: str, soup: BeautifulSoup) -> list:
     names_tag = soup.select("div.staff-item--title")
     if names_tag:
@@ -98,23 +141,26 @@ def about_us_content(url: str) -> dict:
             pass
 
         elif url.endswith("/executive-management"):
-            pages_tags = soup.select('a.page-link')
-            titles.extend(get_titles(url,soup))
-            texts.extend(get_names(url,soup))
+            # pages_tags = soup.select('a.page-link')
+            # titles.extend(get_titles(url,soup))
+            # texts.extend(get_names(url,soup))
             
-            if pages_tags:
-                for link in pages_tags:
-                    if link.has_attr('href'):
-                        new_url = urljoin(url, str(link['href']))
-                        html = fetch_page(new_url)
-                        if html:
-                            new_soup = BeautifulSoup(html, 'lxml')
-                            titles.extend(get_titles(new_url, new_soup))
-                            texts.extend(get_names(new_url, new_soup))
-            for title,name in zip(titles,texts):
-                print(f"{title}: {name}")
-        # elif url.endswith("/sharia-supervisory-board"):
-        #     print(get_title(soup), end="\n\n")
+            # if pages_tags:
+            #     for link in pages_tags:
+            #         if link.has_attr('href'):
+            #             new_url = urljoin(url, str(link['href']))
+            #             html = fetch_page(new_url)
+            #             if html:
+            #                 new_soup = BeautifulSoup(html, 'lxml')
+            #                 titles.extend(get_titles(new_url, new_soup))
+            #                 texts.extend(get_names(new_url, new_soup))
+            # for title,name in zip(titles,texts):
+            #     print(f"{title}: {name}")
+                pass
+                
+        elif url.endswith("/sharia-supervisory-board"):
+            titles = get_titles(url,soup)
+            texts =  get_names(url,soup)
         #     print(get_paragraph(soup))
         # elif url.endswith("/prizes"):
         #     print(get_title(soup))
@@ -142,6 +188,8 @@ def extract_content(url: str, html: str):
             if href:
                 full_url = urljoin(BASE_URL, str(href))
                 dic = about_us_content(full_url)
+                for t,n in zip(dic['title'],dic['text']):
+                    print(t,n)
 
 
 def main():
