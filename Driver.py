@@ -105,16 +105,16 @@ def get_rewards(url:str, soup:BeautifulSoup) :
         
             for prize_item in all_prizes:
                 title_tag = prize_item.select_one('div.prize-item-content div.prize-item--title')
-                title = title_tag.get_text(strip=True)
+                title = title_tag.get_text(strip=True) if title_tag else 'Empty'
                 
                 source_tag = prize_item.select_one('div.prize-item-content div.prize-item--desc')
-                source = source_tag.get_text(strip=True)
+                source = source_tag.get_text(strip=True) if source_tag else 'Empty'
                 
                 year_tag = prize_item.select_one('div.prize-item-icon svg text[font-size = "15"]')
-                year = year_tag.get_text(strip=True)
+                year = year_tag.get_text(strip=True) if year_tag else 'Empty'
                 
                 month_tag = prize_item.select_one('div.prize-item-icon svg text[font-size = "14"]')
-                month = month_tag.get_text(strip=True)
+                month = month_tag.get_text(strip=True) if month_tag else 'c'
                 
                 full_title = f"{title} - {source}"
                 full_text = f"{year} - {month}"
