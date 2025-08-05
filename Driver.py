@@ -1,12 +1,10 @@
-from ast import Str
-from asyncio import exceptions
-from sys import exception
 from types import NoneType
 import requests
 from bs4 import BeautifulSoup
 import logging
 from urllib.parse import urljoin
 import re
+import pandas as pd
 
 
 class TitleNotFoundError(Exception):
@@ -96,7 +94,47 @@ def get_green_titles(url: str, soup: BeautifulSoup) -> list:
             
     return data_list
         
-    
+def get_rewards(url:str, soup:BeautifulSoup) :
+            data_list = []
+            
+            all_prizes = soup.select('div.prizes-list div.prize-item')
+            
+            if not all_prizes:
+                logging.error('Unavailable rewards')
+                raise TitleNotFoundError("Unavailable rewards")
+        
+            for prize_item in all_prizes:
+                title_tag = prize_item.select_one('div.prize-item-content div.prize-item--title')
+                title = title_tag.get_text(strip=True)
+                
+                source_tag = prize_item.select_one('div.prize-item-content div.prize-item--desc')
+                source = source_tag.get_text(strip=True)
+                
+                year_tag = prize_item.select_one('div.prize-item-icon svg text[font-size = "15"]')
+                year = year_tag.get_text(strip=True)
+                
+                month_tag = prize_item.select_one('div.prize-item-icon svg text[font-size = "14"]')
+                month = month_tag.get_text(strip=True)
+                
+                full_title = f"{title} - {source}"
+                full_text = f"{year} - {month}"
+
+                row = {
+                    'url' : url,
+                    'title' : full_title,
+                    'text'  : full_text
+                }
+                
+                data_list.append(row)
+                
+            return data_list
+                
+                
+                
+            
+            
+            
+            
 
 def get_names(url: str, soup: BeautifulSoup) -> list:
     names_tag = soup.select("div.staff-item--title")
@@ -159,11 +197,16 @@ def about_us_content(url: str) -> dict:
                 pass
                 
         elif url.endswith("/sharia-supervisory-board"):
-            titles = get_titles(url,soup)
-            texts =  get_names(url,soup)
+            # df = pd.DataFrame(get_green_titles(url,soup))
+            # df.to_csv('output.csv', index=False, encoding='utf-8-sig')
+            pass
         #     print(get_paragraph(soup))
         # elif url.endswith("/prizes"):
         #     print(get_title(soup))
+        elif url.endswith("/content/prizes"):
+            get_rewards(url,soup)
+            print('test')
+            
     except TitleNotFoundError as e:
         print(e)
         return {}
@@ -188,8 +231,7 @@ def extract_content(url: str, html: str):
             if href:
                 full_url = urljoin(BASE_URL, str(href))
                 dic = about_us_content(full_url)
-                for t,n in zip(dic['title'],dic['text']):
-                    print(t,n)
+              
 
 
 def main():
