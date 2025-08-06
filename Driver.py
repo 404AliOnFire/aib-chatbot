@@ -34,7 +34,6 @@ def fetch_page(url: str):
         logging.error(f"Error Fetching {url} page: {e}")
         return None
 
-
 def get_title(url: str, soup: BeautifulSoup) -> str:
     title_tag = soup.select_one("h1.inner-header-title")
     if title_tag:
@@ -44,7 +43,6 @@ def get_title(url: str, soup: BeautifulSoup) -> str:
     else:
         logging.error("Title tag 'h1.inner-header-title' not found.")
         raise TitleNotFoundError("Title tag not found in HTML")
-
 
 def get_titles(url: str, soup: BeautifulSoup) -> list:
 
@@ -57,8 +55,8 @@ def get_titles(url: str, soup: BeautifulSoup) -> list:
         logging.error("Title tag 'div.staff-item--desc' not found.")
         raise TitleNotFoundError("Title tag not found in HTML")
 
-
 def get_green_titles(url: str, soup: BeautifulSoup) -> list:
+    
   
     
     data_list = []
@@ -94,7 +92,7 @@ def get_green_titles(url: str, soup: BeautifulSoup) -> list:
             
     return data_list
         
-def get_rewards(url:str, soup:BeautifulSoup) :
+def get_rewards(url:str, soup:BeautifulSoup) -> list:
             data_list = []
             
             all_prizes = soup.select('div.prizes-list div.prize-item')
@@ -128,14 +126,7 @@ def get_rewards(url:str, soup:BeautifulSoup) :
                 data_list.append(row)
                 
             return data_list
-                
-                
-                
-            
-            
-            
-            
-
+                               
 def get_names(url: str, soup: BeautifulSoup) -> list:
     names_tag = soup.select("div.staff-item--title")
     if names_tag:
@@ -153,7 +144,7 @@ def get_paragraph(soup: BeautifulSoup) -> str:
     paragraphs = [p.get_text(strip=True) for p in ps]
     return "\n".join(paragraphs)
 
-
+# --- Remember to change the return hint --- #
 def about_us_content(url: str) -> dict:
     texts = []
     titles = []
@@ -212,6 +203,8 @@ def about_us_content(url: str) -> dict:
         return {}
     return {"url": url, "title": titles, "text": texts}
 
+def individual_services_content(url: str):
+    pass
 
 def get_data(url: str, soup: BeautifulSoup):
     title = get_title(url, soup)
@@ -219,24 +212,55 @@ def get_data(url: str, soup: BeautifulSoup):
     return [text], [title]
 
 
-def extract_content(url: str, html: str):
+
+def extract_content(url: str):
+    individual_services_urls = ['https://aib.ps/content/accounts',
+                                'https://aib.ps/content/fund',
+                                'https://aib.ps/content/cards',
+                                'https://aib.ps/content/e-services',
+                                'https://aib.ps/content/transfers',
+                                'https://aib.ps/content/treasury-services',
+                                'https://aib.ps/content/others']
+    
+    
+    
+    html = fetch_page(url)
+    
     if html is None:
         logging.error(f"No HTML content to extract for URL: {url}")
         return
-    soup = BeautifulSoup(html, "lxml")
+    
+    
     if url.endswith("/about-us"):
+        soup = BeautifulSoup(html, "lxml")
         links = soup.select("div.item-list-w a.item-list")
+        
         for link in links:
             href = link.get("href")
             if href:
                 full_url = urljoin(BASE_URL, str(href))
                 dic = about_us_content(full_url)
+                
+    elif url.endswith("/individual-services"):
+        
+        for url in individual_services_urls:
+            
+            html = fetch_page(url)
+            soup = BeautifulSoup(html,'lxml')
+            links = soup.select("div.item-list-w a.item-list")
+        
+            for link in links:
+                href = link.get("href")
+                if href:
+                    full_url = urljoin(BASE_URL, str(href))
+                    dic = individual_services_content(full_url)
+            
               
 
 
 def main():
     html = fetch_page(urljoin(BASE_URL, "content/about-us"))
-    extract_content(urljoin(BASE_URL, "content/about-us"), str(html))
+    extract_content(urljoin(BASE_URL, "content/about-us"))
 
 
 if __name__ == "__main__":
