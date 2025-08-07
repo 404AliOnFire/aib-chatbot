@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 import re
 import pandas as pd
 from tabulate import tabulate
+from io import StringIO
 
 
 class TitleNotFoundError(Exception):
@@ -150,8 +151,8 @@ def get_paragraph(soup: BeautifulSoup) -> str:
     return "\n".join(paragraphs)
 
 
-# --- Remember to change the return hint --- #
-def about_us_content(url: str) -> dict:
+# --- Remember to change the return hint --- # changed but re see
+def about_us_content(url: str) -> list[dict]:
     texts = []
     titles = []
 
@@ -222,44 +223,27 @@ def individual_services_content(url: str) -> list[dict]:
     soup = BeautifulSoup(html, "lxml")
 
     try:
-        if url.endswith("41.html"):  # change the if condition
-            main_title = get_title(url, soup)
-
-            green_selections = get_green_titles(url, soup)
-
-            first_text = get_intro_text(soup)
-
-            row = {
-                "url": url,
-                "title": main_title,
-                "text": first_text if first_text else "N/A",
-            }
-            
-            scriped_data.append(row)
-
-            for section in green_selections:
-                combined_title = f"{main_title} - {section['title']}"
-
-                row = {
-                    "url": url,
-                    "title": combined_title,
-                    "text": section["text"] if section["text"] else "N/A",
-                }
-
-                scriped_data.append(row)
+        if url.endswith("49.html"):  # change the if condition
+            scriped_data = get_individual_service_sections(url, soup)
             df = pd.DataFrame(scriped_data)
             df.to_csv("outputs.csv")
-
+            
+            # E-SADAD
         elif url.endswith("/733.html"):
+            # iBURAQ
             # df = pd.DataFrame(get_esdad_content(url, soup))
             # df.to_csv("test.csv")
             pass
+        elif url.endswith('/771.html'): 
+             df = pd.DataFrame(get_iburag_content(url, soup))
+             df.to_csv("test.csv")
 
     except TitleNotFoundError as e:
         print(e)
         return {}
 
     return scriped_data
+
 
 
 def is_green_title_element(tag: Tag) -> bool:
@@ -294,8 +278,8 @@ def get_intro_text(soup: BeautifulSoup) -> str:
                 
             else:
                 intro_paragraphs.append(t)
-
-            return "".join(intro_paragraphs)
+                
+    return "".join(intro_paragraphs)
 
 
 def get_esdad_content(url: str, soup: BeautifulSoup) -> list[dict]:
@@ -326,7 +310,95 @@ def get_esdad_content(url: str, soup: BeautifulSoup) -> list[dict]:
 
         return data
 
+def get_iburag_content(url: str, soup: BeautifulSoup) -> list[dict]:
+    """
+    Extracts content from the IBURAQ service page, separating the
+    introductory paragraphs from the bulleted list.
+    
+    """
+    results = []
+    
+    container = soup.select_one('div.inner-body-desc.list-design')
+    if not container:
+        return []
 
+    intro_paragraphs = container.find_all('p', recursive=False)
+    if intro_paragraphs:
+        intro_text = "\n".join([p.get_text(strip=True) for p in intro_paragraphs])
+        
+   
+        results.append({
+            'url': url,
+            'title': 'نظام الدفع الإلكتروني IBURAQ', 
+            'text': intro_text
+        })
+
+    ul_tag = container.find('ul')
+    if ul_tag:
+        list_items = ul_tag.find_all('li')
+            
+        if(list_items):
+            for list in list_items:
+                title_tag = list.find('strong')
+                if(title_tag):
+                    list_title = title_tag.get_text(strip=True)
+        
+                list_text = list.get_text(strip=True)
+        
+                results.append({
+                    'url': url,
+                    'title': list_title,
+                    'text': list_text
+                })
+
+    table_data = parse_iburag_table(soup)
+    
+    for row in table_data:
+        title_prefix = "حدود الحركة"
+        movement_type = row.get('الحركة', '') 
+        
+        text_content = ", ".join([f"{key}: {value}" for key, value in row.items()])
+        
+        results.append({
+            'url': url,
+            'title': f"{title_prefix} - {movement_type}",
+            'text': text_content
+        })
+
+    
+    return results    
+
+def parse_iburag_table(soup: BeautifulSoup) -> list[dict]:
+    """
+    Finds the table, parses it using pandas, cleans it up, 
+    and returns it as a list of dictionaries.
+    This version is more robust and handles different header types.
+    """
+    table_tag = soup.find('figure', class_='table')
+    if not table_tag:
+        table_tag = soup.find('table')
+        
+    if not table_tag:
+        return []
+
+    try:
+        df = pd.read_html(StringIO(str(table_tag)))[0]
+    except ValueError:
+        return []
+
+    new_columns = []
+    for col in df.columns:
+        if isinstance(col, tuple):
+            cleaned_col = '_'.join(str(c) for c in col if 'Unnamed' not in str(c))
+            new_columns.append(cleaned_col)
+        else:
+            new_columns.append(str(col))
+    
+    df.columns = new_columns
+
+    df.dropna(how='all', inplace=True)
+
+    return df.to_dict('records')    
 def get_data(url: str, soup: BeautifulSoup):
     title = get_title(url, soup)
     text = get_paragraph(soup)
@@ -385,10 +457,35 @@ def extract_content(url: str):
                 else:
                     print("error")
 
-
 def main():
     extract_content(urljoin(BASE_URL, "/content/individual-services"))
 
 
 if __name__ == "__main__":
     main()
+
+def get_individual_service_sections(url: str, soup: BeautifulSoup) -> list[dict]:
+    """
+    Extracts the main title, intro text, and green sections for an individual service page.
+    Returns a list of dicts with url, title, and text.
+    """
+    scriped_data = []
+    main_title = get_title(url, soup)
+    first_text = get_intro_text(soup)
+    row = {
+        "url": url,
+        "title": main_title,
+        "text": first_text if first_text else "N/A",
+    }
+    scriped_data.append(row)
+
+    green_selections = get_green_titles(url, soup)
+    for section in green_selections:
+        combined_title = f"{main_title} - {section['title']}"
+        row = {
+            "url": url,
+            "title": combined_title,
+            "text": section["text"] if section["text"] else "N/A",
+        }
+        scriped_data.append(row)
+    return scriped_data
