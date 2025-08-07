@@ -64,7 +64,7 @@ def get_green_titles(url: str, soup: BeautifulSoup) -> list:
 
     data_list = []
 
-    titles_tag = soup.find_all("span", style=re.compile(r"color:\s*#799E91"))
+    titles_tag = soup.find_all("span", style=re.compile(r"color:\s*(?:#799E91|#4A4A4A)", re.IGNORECASE))
 
     for title_span in titles_tag:
         try:
@@ -223,27 +223,49 @@ def individual_services_content(url: str) -> list[dict]:
     soup = BeautifulSoup(html, "lxml")
 
     try:
-        if url.endswith("49.html"):  # change the if condition
-            scriped_data = get_individual_service_sections(url, soup)
-            df = pd.DataFrame(scriped_data)
-            df.to_csv("outputs.csv")
-            
+     
             # E-SADAD
-        elif url.endswith("/733.html"):
+        if url.endswith("/733.html"):
             # iBURAQ
-            # df = pd.DataFrame(get_esdad_content(url, soup))
+            scriped_data.extend(get_esdad_content(url, soup))
             # df.to_csv("test.csv")
             pass
-        elif url.endswith('/771.html'): 
-             df = pd.DataFrame(get_iburag_content(url, soup))
-             df.to_csv("test.csv")
-
+        elif url.endswith('/771.html'):
+            scriped_data.extend(get_iburag_content(url, soup))
+        else:
+            scriped_data.extend(get_individual_service_sections(url, soup))
+            
     except TitleNotFoundError as e:
         print(e)
         return {}
 
     return scriped_data
 
+def get_individual_service_sections(url: str, soup: BeautifulSoup) -> list[dict]:
+    """
+    Extracts the main title, intro text, and green sections for an individual service page.
+    Returns a list of dicts with url, title, and text.
+    """
+    scriped_data = []
+    main_title = get_title(url, soup)
+    first_text = get_intro_text(soup)
+    row = {
+        "url": url,
+        "title": main_title,
+        "text": first_text if first_text else "N/A",
+    }
+    scriped_data.append(row)
+
+    green_selections = get_green_titles(url, soup)
+    for section in green_selections:
+        combined_title = f"{main_title} - {section['title']}"
+        row = {
+            "url": url,
+            "title": combined_title,
+            "text": section["text"] if section["text"] else "N/A",
+        }
+        scriped_data.append(row)
+    return scriped_data
 
 
 def is_green_title_element(tag: Tag) -> bool:
@@ -407,18 +429,28 @@ def get_data(url: str, soup: BeautifulSoup):
 
 def extract_content(url: str):
 
-    data = []
+    scrapied_data = []
 
-    link = "https://aib.ps/content/e-services"
-    individual_services_urls = [link]
-    # https://aib.ps/content/accounts'
-    #  'https://aib.ps/content/fund',
-    #                             'https://aib.ps/content/cards',
-    #                             'https://aib.ps/content/e-services',
-    #                             'https://aib.ps/content/transfers',
-    #                             'https://aib.ps/content/treasury-services',
-    #                             'https://aib.ps/content/others'
+    # link = "https://aib.ps/content/business-e-services"
+    individual_services_urls = [
+        'https://aib.ps/content/accounts',
+        'https://aib.ps/content/fund',
+        'https://aib.ps/content/cards',
+        'https://aib.ps/content/e-services',
+        'https://aib.ps/content/transfers',
+        'https://aib.ps/content/treasury-services',
+        'https://aib.ps/content/others'
+    ]
 
+    business_services_urls = [
+        'https://aib.ps/content/accounts-b',
+        'https://aib.ps/content/fund-b',
+        'https://aib.ps/content/international-trade',
+        'https://aib.ps/content/treasury-services-b',
+        'https://aib.ps/content/business-e-services',
+        'https://aib.ps/content/transfers-b',
+    ]
+    
     html = fetch_page(url)
 
     if html is None:
@@ -452,10 +484,12 @@ def extract_content(url: str):
                 print(href)
                 if href:
                     full_url = urljoin(BASE_URL, str(href))
-                    data.extend(individual_services_content(full_url))
-
+                    scrapied_data.extend(individual_services_content(full_url))
                 else:
                     print("error")
+            df = pd.DataFrame(scrapied_data)
+            df.to_csv("outputs.csv", index=False, encoding="utf-8-sig")
+
 
 def main():
     extract_content(urljoin(BASE_URL, "/content/individual-services"))
@@ -464,28 +498,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-def get_individual_service_sections(url: str, soup: BeautifulSoup) -> list[dict]:
-    """
-    Extracts the main title, intro text, and green sections for an individual service page.
-    Returns a list of dicts with url, title, and text.
-    """
-    scriped_data = []
-    main_title = get_title(url, soup)
-    first_text = get_intro_text(soup)
-    row = {
-        "url": url,
-        "title": main_title,
-        "text": first_text if first_text else "N/A",
-    }
-    scriped_data.append(row)
-
-    green_selections = get_green_titles(url, soup)
-    for section in green_selections:
-        combined_title = f"{main_title} - {section['title']}"
-        row = {
-            "url": url,
-            "title": combined_title,
-            "text": section["text"] if section["text"] else "N/A",
-        }
-        scriped_data.append(row)
-    return scriped_data
