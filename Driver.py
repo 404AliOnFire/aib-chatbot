@@ -1,6 +1,6 @@
 from types import NoneType
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 import logging
 from urllib.parse import urljoin
 import re
@@ -222,23 +222,38 @@ def individual_services_content(url: str) -> list[dict]:
     soup = BeautifulSoup(html, "lxml")
 
     try:
-        if url.endswith("removeit"):  # change the if condition
+        if url.endswith("41.html"):  # change the if condition
             main_title = get_title(url, soup)
 
             green_selections = get_green_titles(url, soup)
 
+            first_text = get_intro_text(soup)
+
+            row = {
+                "url": url,
+                "title": main_title,
+                "text": first_text if first_text else "N/A",
+            }
+            
+            scriped_data.append(row)
+
             for section in green_selections:
                 combined_title = f"{main_title} - {section['title']}"
 
-                new_row = {"url": url, "title": combined_title, "text": section["text"]}
+                row = {
+                    "url": url,
+                    "title": combined_title,
+                    "text": section["text"] if section["text"] else "N/A",
+                }
 
-                scriped_data.append(new_row)
+                scriped_data.append(row)
             df = pd.DataFrame(scriped_data)
             df.to_csv("outputs.csv")
 
         elif url.endswith("/733.html"):
-            df = pd.DataFrame(get_esdad_content(url, soup)) 
-            df.to_csv('test.csv')
+            # df = pd.DataFrame(get_esdad_content(url, soup))
+            # df.to_csv("test.csv")
+            pass
 
     except TitleNotFoundError as e:
         print(e)
@@ -247,17 +262,53 @@ def individual_services_content(url: str) -> list[dict]:
     return scriped_data
 
 
+def is_green_title_element(tag: Tag) -> bool:
+    if tag.find("strong"):
+        return True
+
+    green_span = tag.find("span", style=re.compile(r"color:\s*#799E91"))
+    if green_span:
+        return True
+
+    return False
+
+
+def get_intro_text(soup: BeautifulSoup) -> str:
+    intro_paragraphs = []
+
+    container = soup.find("div", class_="inner-body-desc")
+    if not container:
+        return ""
+
+    for element in container.find_all(True, recursive=False):
+        if is_green_title_element(element):
+            break
+
+        if element.name == "p" and not element.find("img"):
+            t = element.get_text(strip=True)
+            if '،' in t:
+                
+                cleaned_parts = [part.strip() for part in t.split('،')]
+                processed_text = '\n'.join(cleaned_parts)
+                intro_paragraphs.append(processed_text)
+                
+            else:
+                intro_paragraphs.append(t)
+
+            return "".join(intro_paragraphs)
+
+
 def get_esdad_content(url: str, soup: BeautifulSoup) -> list[dict]:
     data = []
     faq_tags = soup.select("div.faq-item")
-    title_page = get_title(url,soup)
+    title_page = get_title(url, soup)
 
     if faq_tags:
         for tag in faq_tags:
 
             tilte_tag = tag.find("div", class_="faq-title")
             title = tilte_tag.get_text(strip=True) if tilte_tag else "N/A"
-            
+
             full_title = f"{title_page} - {title}"
 
             content_points = []
@@ -269,12 +320,10 @@ def get_esdad_content(url: str, soup: BeautifulSoup) -> list[dict]:
                 ]
 
             full_content = "\n".join(content_points)
-            
-            row = {"url": url, 
-                   "title": full_title,
-                   "text": full_content}
+
+            row = {"url": url, "title": full_title, "text": full_content}
             data.append(row)
-        
+
         return data
 
 
@@ -332,8 +381,6 @@ def extract_content(url: str):
                 if href:
                     full_url = urljoin(BASE_URL, str(href))
                     data.extend(individual_services_content(full_url))
-                    df = pd.DataFrame(data)
-                    df.to_csv("output.csv")
 
                 else:
                     print("error")
