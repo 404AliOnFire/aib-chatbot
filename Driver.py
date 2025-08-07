@@ -241,7 +241,7 @@ def individual_services_content(url: str) -> list[dict]:
 
     return scriped_data
 
-def get_individual_service_sections(url: str, soup: BeautifulSoup) -> list[dict]:
+def get_service_sections(url: str, soup: BeautifulSoup) -> list[dict]:
     """
     Extracts the main title, intro text, and green sections for an individual service page.
     Returns a list of dicts with url, title, and text.
@@ -487,12 +487,48 @@ def extract_content(url: str):
                     scrapied_data.extend(individual_services_content(full_url))
                 else:
                     print("error")
+                    
+            # Edit this dont forget ----------------------------------- Important
+            # df = pd.DataFrame(scrapied_data)
+            # df.to_csv("outputs.csv", index=False, encoding="utf-8-sig")
+            
+    elif url.endswith("/business-services"):
+        for url in business_services_urls:
+            html = fetch_page(url)
+            soup = BeautifulSoup(html, "lxml")
+            links = soup.select("div.item-list-w a.item-list")
+
+            for link in links:
+                href = link.get("href")
+                print(href)
+                if href:
+                    full_url = urljoin(BASE_URL, str(href))
+                    scrapied_data.extend(business_services_content(full_url))
+                else:
+                    print("error")
             df = pd.DataFrame(scrapied_data)
             df.to_csv("outputs.csv", index=False, encoding="utf-8-sig")
 
+def business_services_content(url: str) -> list[dict]:
+    # Placeholder implementation; adjust as needed for your business services scraping logic.
+    html = fetch_page(url)
+    scriped_data = []
+
+    if html is None:
+        logging.error(f"No HTML content for URL: {url}")
+        return {}
+    soup = BeautifulSoup(html, "lxml")
+
+    try:
+        scriped_data.extend(get_service_sections(url, soup))
+    except TitleNotFoundError as e:
+        print(e)
+        return {}
+
+    return scriped_data
 
 def main():
-    extract_content(urljoin(BASE_URL, "/content/individual-services"))
+    extract_content(urljoin(BASE_URL, "/content/business-services"))
 
 
 if __name__ == "__main__":
