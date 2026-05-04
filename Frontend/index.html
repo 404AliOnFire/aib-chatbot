@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Chatbot</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #f4f7f6; 
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+        }
+        .chat-container { 
+            width: 90%; 
+            max-width: 600px; 
+            height: 90vh; 
+            background-color: #fff; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .chat-header { 
+            background-color: #007bff; 
+            color: white; 
+            padding: 15px; 
+            border-top-left-radius: 10px; 
+            border-top-right-radius: 10px; 
+            text-align: center; 
+        }
+        .chat-window { 
+            flex-grow: 1; 
+            padding: 20px; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .message { 
+            padding: 10px 15px; 
+            border-radius: 18px; 
+            margin-bottom: 10px; 
+            max-width: 80%; 
+            line-height: 1.4; 
+        }
+        .user-message { 
+            background-color: #007bff; 
+            color: white; 
+            align-self: flex-start; /* رسائل المستخدم على اليسار للغة العربية */
+        }
+        .bot-message { 
+            background-color: #e9e9eb; 
+            color: #333; 
+            align-self: flex-end; /* رسائل البوت على اليمين للغة العربية */
+        }
+        .typing-indicator { 
+            color: #999; 
+            font-style: italic; 
+        }
+        .input-area { 
+            display: flex; 
+            flex-direction: column; 
+            padding: 15px; 
+            border-top: 1px solid #ddd; 
+        }
+        .input-area textarea { 
+            margin-bottom: 10px; 
+            resize: vertical; 
+            border-radius: 5px; 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            font-size: 16px; 
+        }
+        .input-area button { 
+            border-radius: 5px; 
+            border: 1px solid #ccc; 
+            padding: 10px; 
+            font-size: 16px; 
+            background-color: #007bff; 
+            color: white; 
+            cursor: pointer; 
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header"><h2>المساعد الذكي للبنك</h2></div>
+        <div class="chat-window" id="chat-window">
+            <div class="message bot-message">أهلاً بك! يرجى كتابة السياق في المربع الكبير، وسؤالك في المربع الصغير.</div>
+        </div>
+        <form class="input-area" id="chat-form">
+            <textarea id="context-input" rows="5" placeholder="اكتب السياق (النص الذي سيبحث فيه البوت) هنا..." required></textarea>
+            <textarea id="question-input" rows="2" placeholder="اكتب سؤالك هنا..." required></textarea>
+            <button type="submit">إرسال</button>
+        </form>
+    </div>
+
+    <script>
+        // --- الرابط يشير إلى الخادم المحلي الذي يعمل على جهازك ---
+        const API_URL = "http://127.0.0.1:8000/ask";
+
+        const chatWindow = document.getElementById('chat-window');
+        const chatForm = document.getElementById('chat-form');
+        const questionInput = document.getElementById('question-input');
+        const contextInput = document.getElementById('context-input');
+
+        chatForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const question = questionInput.value.trim();
+            const context = contextInput.value.trim();
+            if (!question || !context) return;
+
+            addMessage(question, 'user-message');
+            questionInput.value = '';
+            const typingIndicator = addMessage("البوت يفكر...", 'bot-message typing-indicator');
+            
+            try {
+                // إرسال الطلب إلى خادم الـ Backend
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: question, context: context })
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                
+                // عرض إجابة النموذج
+                typingIndicator.textContent = data.answer;
+                typingIndicator.classList.remove('typing-indicator');
+
+            } catch (error) {
+                console.error("Error fetching API:", error);
+                typingIndicator.textContent = "عذرًا، لا يمكن الوصول للخادم. هل تأكدت من تشغيل الـ Backend؟";
+                typingIndicator.classList.remove('typing-indicator');
+            }
+        });
+
+        function addMessage(text, className) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${className}`;
+            messageDiv.textContent = text;
+            chatWindow.appendChild(messageDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight; // للنزول لآخر رسالة
+            return messageDiv;
+        }
+    </script>
+</body>
+</html>
